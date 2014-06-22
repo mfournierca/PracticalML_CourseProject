@@ -1,0 +1,89 @@
+Practical Machine Learning Course Project
+========================================================
+
+#Introduction
+
+We are tasked with choosing an algorithm to predict the manner in which someone
+has done an exercise. 
+
+The general strategy is to se the training data set to build a classifier, and then run the model on the test data. 
+
+#Preprocessing
+
+Load required libraries
+```{r}
+require(caret)
+```
+
+##Load data
+  
+```{r cache=TRUE}
+training <- read.csv("data/pml-training.csv")
+```
+
+There are calculated statistics on the raw data. These are not raw data, drop them. Others are not the accelerometer data we were instructed to use. 
+
+```{r cache=TRUE}
+k <- grep("(kurtosis|skewness|stddev|avg|magnet)", colnames(training))
+training <- subset(training, select=-k)
+```
+
+Some other variables are obviously irrelevant, drop them. 
+
+```{r cache=TRUE}
+k <- grep("(timestamp)", colnames(training))
+training <- subset(training, select=-k)
+```
+
+Remove zero variance predictors.
+
+```{r}
+nsv <- nearZeroVar(training)
+training <- subset(training, select=-nsv)
+```
+
+Some vars are obviously useless, such as the user name and index. 
+
+```{r}
+training$user_name <- NULL
+training$X <- NULL
+```
+
+We need to perform cross validation, so partition the training set into sub 
+training and sub test sets. The sub train set will be used for model creation.
+
+```{r cache=TRUE}
+i <- createDataPartition(y=training$classe, list=FALSE, p=0.75)
+subtrain <- training[i,]
+subtest <- training[-i,]
+```
+
+#Building the Model
+
+##Covariate Selection
+
+We completed the covariate selection above when dropping the zero variance predictors and other useless data. 
+
+##Select Model
+
+I performed an exploration of many different models before settling on the random forests model. This exploration is not detailed as it is irrelevant to the project. 
+
+The random forest is built using the caret package. 
+
+```{r}
+modfit <- train(classe ~ ., method="rf", data=subtrain, prox=TRUE)
+modfit$finalModel
+```
+
+We see in the summary that the confusion matrix is accurate, all the errors are under 30%. The average error is 24%. 
+
+##Out of Sample Errors
+
+We expect the out of sample errors to be greater than 30%, the errors on the training set. 
+
+We estimate this using cross validation on the subtest data. 
+
+```{r}
+pr <- predict(modfit, subtest)
+mean(pr == subtest$class)
+```
